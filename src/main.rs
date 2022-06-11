@@ -5,37 +5,39 @@ extern crate tokio_core;
 use std::str;
 
 use futures::{Future, Stream};
-use hyper::server::Http;
-use hyper::server::Request;
-use hyper::server::Response;
-use hyper::server::Service;
+use hyper::service::service_fn;
+use hyper::Body;
+use hyper::Request;
+use hyper::Response;
+use hyper::Server;
 
-struct BlackHole;
+type BoxFut = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 
-impl Service for BlackHole {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
+fn blackhole(req: Request<Body>) -> BoxFut {
+    let method = req.method();
+    let request_uri = req.uri();
+    let http_version = req.version();
+    let headers = req.headers();
 
-    fn call(&self, req: Request) -> Self::Future {
-        let (method, request_uri, http_version, headers, body) = req.deconstruct();
-        println!("----------------------------------------");
-        println!("Http version: {:?}", http_version);
-        println!("Method: {:?}", method);
-        println!("Headers: {:?}", headers);
-        println!("Uri: {:?}", request_uri);
+    println!("----------------------------------------");
+    println!("Http version: {:?}", http_version);
+    println!("Method: {:?}", method);
+    println!("Headers: {:?}", headers);
+    println!("Uri: {:?}", request_uri);
 
-        Box::new(body.concat2().and_then(move |body| {
-            println!("Body: {:?}", str::from_utf8(&body));
-            Ok(Response::new())
-        }))
-    }
+    let body = req.into_body();
+
+    Box::new(body.concat2().and_then(move |body| {
+        println!("Body: {:?}", str::from_utf8(&body));
+        Ok(Response::new(Body::empty()))
+    }))
 }
 
 fn main() {
-    let addr = "127.0.0.1:8080".parse().unwrap();
+    let addr = ([127, 0, 0, 1], 18888).into();
+    let server = Server::bind(&addr)
+        .serve(|| service_fn(blackhole))
+        .map_err(|e| eprintln!("server error: {}", e));
     println!("Listening on {}", addr);
-    let server = Http::new().bind(&addr, || Ok(BlackHole)).unwrap();
-    server.run().unwrap();
+    hyper::rt::run(server);
 }
