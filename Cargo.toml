@@ -1,8 +1,9 @@
 [package]
 
 name = "http-blackhole"
+edition = "2018"
 version = "0.0.1"
 
 [dependencies]
-futures = "0.1.21"
-hyper = "0.12"
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
