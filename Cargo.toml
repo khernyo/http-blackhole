@@ -6,4 +6,3 @@ version = "0.0.1"
 [dependencies]
 futures = "0.1.21"
 hyper = "0.12"
-tokio-core = "0.1.17"
